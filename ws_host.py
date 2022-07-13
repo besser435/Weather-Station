@@ -1,5 +1,7 @@
-"""
 
+
+
+"""
 Architecture:
 Pi requests data every 20 minutes of the hour
 Station sends data
@@ -14,9 +16,10 @@ Uploads database to github repo
 Displays last readings
 if no data in an hour, displays an error
 button to refresh (not log) new data
-
-
 """
+
+
+
 
 
 import time
@@ -24,7 +27,13 @@ import datetime
 import busio
 from digitalio import DigitalInOut, Direction, Pull
 import board
-import adafruit_ssd1306 # OLED display
+
+
+import displayio
+#import adafruit_displayio_ssd1306 # NEW LIBRARY
+import adafruit_ssd1306 # OLED display, this libary is deprecated. update to displayio
+
+
 import adafruit_rfm69
 
 # Button A
@@ -48,7 +57,15 @@ i2c = busio.I2C(board.SCL, board.SDA)
 
 # 128x32 OLED Display
 reset_pin = DigitalInOut(board.D4)
-display = adafruit_ssd1306.SSD1306_I2C(128, 32, i2c, reset=reset_pin)
+
+
+"""display_bus = displayio.I2CDisplay(i2c, device_address=0x3c)
+#display_bus = displayio.I2CDisplay(i2c)
+display = adafruit_displayio_ssd1306.SSD1306(display_bus, width=128, height=32)
+"""
+display = adafruit_ssd1306.SSD1306_I2C(128, 32, i2c, reset=reset_pin) # OLD
+
+
 # Clear the display.
 display.fill(0)
 display.show()
@@ -63,41 +80,8 @@ rfm69 = adafruit_rfm69.RFM69(spi, CS, RESET, 915.0)
 prev_packet = None
 # Optionally set an encryption key (16 byte AES key). MUST match both
 # on the transmitter and receiver (or be set to None to disable/the default).
-rfm69.encryption_key = b"\x01\x02\x03\x04\x05\x06\x07\x08\x01\x02\x03\x04\x05\x06\x07\x08"
+#rfm69.encryption_key = b"\x01\x02\x03\x04\x05\x06\x07\x08\x01\x02\x03\x04\x05\x06\x07\x08"
 
-"""while True:
-    
-    packet = None
-    # draw a box to clear the image
-    display.fill(0)
-    display.text("Weather Station", 35, 0, 1)
-
-    # check for packet rx
-    packet = rfm69.receive()
-    if packet is None:
-        display.show()
-        display.text("- Waiting for PKT -", 15, 20, 1)
-    else:
-        # Display the packet text and rssi
-        display.fill(0)
-        prev_packet = packet
-        packet_text = str(prev_packet, "utf-8")
-        display.text("RX: ", 0, 0, 1)
-        display.text(packet_text, 25, 0, 1)
-        time.sleep(1)
-
-    if not btnA.value:
-        # Send Button A
-        display.fill(0)
-        button_a_data = bytes("request_weather\r\n","utf-8")
-        rfm69.send(button_a_data)
-        display.text("Requested update", 25, 15, 1)
-
-
-    display.show()
-    time.sleep(0.1)
-    break#
-"""
 
 
 
@@ -115,17 +99,22 @@ last_update = None
 
 
 while True:
-    display.fill(0)
-    display.text("Next update in...", 25, 15, 1)
+    rfm69.send(bytes("request_weather\r\n", "utf-8"))
 
+    display.fill(0)
+    display.text("Next update in", 0, 0, 1)
+    display.text("20 minutes", 0, 15, 1)
+    display.show()
+    time.sleep(1)
     # log the data every 20 minutes (Only does it onc per hour rn)
-    if datetime.datetime.now().minute == 20:
-        display.fill(0)
-        get_update = bytes("request_weather\r\n","utf-8")
-        rfm69.send(get_update)
-        display.text("Requested update", 25, 15, 1)
-        print("Requested update")
-        time.sleep(0.05) #needed? longer? shorter?
+    #if datetime.datetime.now().minute == 20:
+    display.fill(0)
+    get_update = bytes("request_weather\r\n", "utf-8")
+    rfm69.send(get_update)
+    display.text("Requested update", 0, 0, 1)
+    print("Requested update")
+    display.show()
+    time.sleep(0.05) #needed? longer? shorter?
 
 
     # manually refresh the data
@@ -133,22 +122,32 @@ while True:
         display.fill(0)
         button_a_data = bytes("request_weather\r\n","utf-8")
         rfm69.send(button_a_data)
-        display.text("Requested update", 25, 15, 1)
+        display.text("Requested update manually", 0, 0, 1)
+        print("Requested update manually")
+        display.show()
 
 
     # fetch the data from the packet
     packet = None
     display.fill(0)
 
+    #packet = None
     packet = rfm69.receive()
     if packet is None:
-        display.show()
+        print("Received nothing! Listening again...")
     else:
+        packet_text = str(packet, "ascii")
+        print("Received (ASCII): {0}".format(packet_text))
+
+
+
+
         display.fill(0)
-        prev_packet = packet
-        packet_text = str(prev_packet, "utf-8")
+        """ prev_packet = packet
+        packet_text = str(prev_packet, "utf-8")"""
         display.text("RX: ", 0, 0, 1)
         display.text(packet_text, 25, 0, 1)
+        display.show()
         
 
         # returned data
@@ -158,6 +157,11 @@ while True:
         time_date = datetime.datetime.now() # the station has no time, so I have to rely on the Pi's time
         last_update = time_date
 
+        print("Temp: " + temp)
+        print("Pressure: " + pressure)
+        print("Humidity: " + humidity)
+        #print("Time: {:5.2f}" + str(time_date))
+        print("Time: " + str(time_date))
 
        
 
@@ -168,22 +172,15 @@ while True:
             f.write(str(temp) + "," + str(pressure) + "," + str(humidity) + "," + str(time_date) + "\n")
 
 
-
-
-
-
-
-
-
-
     # error checking
-    if time_date - last_update > datetime.timedelta(hours=1):
+    """if time_date - last_update > datetime.timedelta(hours=1):
         display.text("Error: No data in last hour", 25, 15, 1)
         with open(file_location + FILE_NAME, "a") as f: 
             f.write("Stale data. last update: " + str(last_update) + "current time: " + time_date + "\n")
 
         print("Error: No data in last hour")
         time.sleep(0.05)
-
+    """
     display.show()
     time.sleep(0.1)
+
