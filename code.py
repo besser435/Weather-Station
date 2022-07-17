@@ -3,12 +3,17 @@ import busio
 import digitalio
 from digitalio import DigitalInOut, Direction, Pull
 import board
+import neopixel
 import adafruit_rfm69
 from adafruit_ms8607 import MS8607
-
+import traceback
 
 # I2C
 i2c = busio.I2C(board.SCL, board.SDA)
+
+# Neopixel
+led_neo = neopixel.NeoPixel(board.NEOPIXEL, 1)
+led_neo.brightness = 0.02
 
 # Pressure, Humidity, Temp
 weath_sens = MS8607(i2c)
@@ -34,96 +39,54 @@ prev_packet = None
 
 
 debug_mode = 1
+led_neo[0] = (0, 255, 0)
 
-while True:
-    #packet = None
-    packet = rfm69.receive()
-    # If no packet was received during the timeout then None is returned.
-    if packet is None:
-        # Packet has not been received
-        print("Received nothing! Listening again...")
-    else:
-        print()
-        # raw packet
-        print("Received (raw bytes): {0}".format(packet))
-
-        # processed packet
-        packet_text = str(packet, "ascii")
-        print("Received (ASCII): {0}".format(packet_text))
-
-        if packet_text == "request_weather\r\n":
-            print("Weather request received")
-
-            # do these need to be casted?
-            weather_data= ( 
-            str(weath_sens.temperature) + "," + 
-            str(weath_sens.pressure) + "," + 
-            str(weath_sens.relative_humidity)
-            )
-
-
-        
-            print(weather_data)
-            send_data = bytes(weather_data, "\r\n","utf-8")
-            rfm69.send(send_data)
-            print("Sent weather data")
+def main():
+    while True:
+        #packet = None
+        packet = rfm69.receive()
+        # If no packet was received during the timeout then None is returned.
+        if packet is None:
+            # Packet has not been received
+            print("Received nothing! Listening again...")
+        else:
+            led_neo[0] = (0, 0, 255)
             print()
+            # raw packet
+            print("Received (raw bytes): {0}".format(packet))
+
+            # processed packet
+            packet_text = str(packet, "ascii")
+            print("Received (ASCII): {0}".format(packet_text))
+
+            if packet_text == "request_weather\r\n":
+                print("Weather request received")
+
+                # do these need to be casted?
+                weather_data= ( 
+                str(weath_sens.temperature) + "," + 
+                str(weath_sens.pressure) + "," + 
+                str(weath_sens.relative_humidity)
+                )
 
 
-# OLD
-while True:
-    packet = None
-    # check for incoming packet
-    packet = rfm69.receive()
-    if packet is None:
-        if debug_mode == 1:
-            print("Pressure: %.2f hPa" % weath_sens.pressure)
-            print("Temperature: %.2f C" % weath_sens.temperature)
-            print("Humidity: %.2f %% rH" % weath_sens.relative_humidity)
-        print("Waiting for packet")
-
-    else:
-        # Display the packet text and rssi
-        print()
-        print("Received packet:")
+            
+                print(weather_data)
+                send_data = bytes(weather_data, "\r\n","utf-8")
+                rfm69(send_data)
+                print("Sent weather data")
+                led_neo[0] = (0, 255, 0)
+                print()
 
 
-
-        packet_text = str(packet, "ascii")
-        print("Received (ASCII): {0}".format(packet_text))
-
-
-
-        prev_packet = packet # this might need to be this janky due to the if is None thing, idk its not my code
-        packet_text = str(packet, "ascii")
-        #packet_text = str(prev_packet, "utf-8")
-        print(packet_text, 25, 0, 1)
-        print("Packet rssi:", rfm69.last_rssi)
-
-
-    if packet_text == "request_weather": #("request_weather\r\n","utf-8")
-        print("Weather request received, gathering and transmitting data...")
-
-
-        print("Pressure: %.2f hPa" % weath_sens.pressure)
-        print("Temperature: %.2f C" % weath_sens.temperature)
-        print("Humidity: %.2f %% rH" % weath_sens.relative_humidity)
-
-
-        # do these need to be casted?
-        weather_data= ( 
-        str("%.2f", weath_sens.temperature) + "," + 
-        str("%.2f", weath_sens.pressure) + "," + 
-        str("%.2f %%", weath_sens.relative_humidity)
-        )
-       
-       
-        send_data = bytes(weather_data, "\r\n","utf-8")
-        #send_data = bytes("Button C!\r\n","utf-8")
-        rfm69.send(send_data)
-
-        print("Data sent!")
-
+try:  # sometimes the radios get fucky wucky
+    print("Running main()")
+    main()
+except UnicodeError:    # maybe change to general traceback
+    print("Unicode error")
+    led_neo[0] = (255, 0, 0)
+    #send a message to the server that the request failed has failed
+    main()
 
 
 
@@ -193,6 +156,5 @@ while True:
     print("Sent yesnt")
     yes += 1
     print(yes)
-    time.sleep(0.1)
 
    

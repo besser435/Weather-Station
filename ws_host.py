@@ -1,6 +1,3 @@
-
-
-
 """
 Architecture:
 Pi requests data every 20 minutes of the hour
@@ -19,7 +16,8 @@ button to refresh (not log) new data
 """
 
 
-
+version = "Weather Station v0.1"
+print(version)
 
 
 import time
@@ -97,56 +95,68 @@ weather_api_key = "1392d31baeec1ab9f5d2bd99d5ec04aa"
 # storage
 last_update = None
 
+with open(file_location + FILE_NAME, "a") as f: 
+    f.write("temp,pressure,humidity,time_date\n") # ADD: api_temp, api_pressure, api_humidity, api_conditions, api_time
+
 
 while True:
-    rfm69.send(bytes("request_weather\r\n", "utf-8"))
-
-    display.fill(0)
-    display.text("Next update in", 0, 0, 1)
-    display.text("20 minutes", 0, 15, 1)
-    display.show()
-    time.sleep(1)
-    # log the data every 20 minutes (Only does it onc per hour rn)
-    #if datetime.datetime.now().minute == 20:
-    display.fill(0)
     get_update = bytes("request_weather\r\n", "utf-8")
-    rfm69.send(get_update)
-    display.text("Requested update", 0, 0, 1)
-    print("Requested update")
+
+    weekday = str(datetime.datetime.today().weekday())
+    current_time = str(datetime.datetime.now().strftime("%I:%M %p"))
+
+    display.fill(0)
+    display.text(weekday, 0, 0, 1)
+    display.text(current_time, 0, 25, 1)
     display.show()
-    time.sleep(0.05) #needed? longer? shorter?
+    time.sleep(2)
+    
+    # log the data every 20 minutes (Only does it once per hour rn)
+    # fetch an update from every 20 minutes
 
+    # if its time to get an update, fetch it
+    #if datetime.datetime.now().minute == 3:
+    if True:
+        display.fill(0)
+        rfm69.send(get_update)
+        display.text("Requested update", 0, 0, 1)
+        display.show()    
+        print("Requested update")
+        #time.sleep(0.05) #needed? longer? shorter?
+ 
 
-    # manually refresh the data
+    # manually fetch an update
     if not btnA.value:
         display.fill(0)
-        button_a_data = bytes("request_weather\r\n","utf-8")
-        rfm69.send(button_a_data)
-        display.text("Requested update manually", 0, 0, 1)
-        print("Requested update manually")
+        rfm69.send(get_update)
+        display.text("Requested update manually", 0, 25, 1)
         display.show()
+        print("Requested update manually")
 
 
-    # fetch the data from the packet
+
+    # fetch the data from the returned packet
     packet = None
-    display.fill(0)
-
-    #packet = None
     packet = rfm69.receive()
     if packet is None:
         print("Received nothing! Listening again...")
+        display.fill(0)
+        display.text("Received nothing", 0, 0, 1)
+        display.show()
     else:
         packet_text = str(packet, "ascii")
         print("Received (ASCII): {0}".format(packet_text))
 
 
-
-
-        display.fill(0)
+        #display.fill(0)
         """ prev_packet = packet
         packet_text = str(prev_packet, "utf-8")"""
-        display.text("RX: ", 0, 0, 1)
-        display.text(packet_text, 25, 0, 1)
+
+        #display.text("RX: ", 0, 0, 1)
+        #display.text(packet_text, 0, 0, 1)
+        
+        display.fill(0)
+        display.text("Got data", 0, 0, 1)
         display.show()
         
 
@@ -160,15 +170,15 @@ while True:
         print("Temp: " + temp)
         print("Pressure: " + pressure)
         print("Humidity: " + humidity)
-        #print("Time: {:5.2f}" + str(time_date))
         print("Time: " + str(time_date))
+        print()
+        time.sleep(3)
 
        
 
 
         # log the data to the file
         with open(file_location + FILE_NAME, "a") as f: 
-            f.write("temp,pressure,humidity,time_date\n") # ADD: api_temp, api_pressure, api_humidity, api_conditions, api_time
             f.write(str(temp) + "," + str(pressure) + "," + str(humidity) + "," + str(time_date) + "\n")
 
 
