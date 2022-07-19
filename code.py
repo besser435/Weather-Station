@@ -22,7 +22,8 @@ weath_sens = MS8607(i2c)
 spi = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
 cs = digitalio.DigitalInOut(board.D5)
 reset = digitalio.DigitalInOut(board.D6)
-rfm69 = adafruit_rfm69.RFM69(spi, cs, reset, 915.0)
+rfm69 = adafruit_rfm69.RFM69(spi, cs, reset, 915.0, high_power=True, )
+
 
 
 prev_packet = None
@@ -43,7 +44,7 @@ led_neo[0] = (0, 255, 0)
 
 def main():
     while True:
-        #packet = None
+        packet = None
         packet = rfm69.receive()
         # If no packet was received during the timeout then None is returned.
         if packet is None:
@@ -51,8 +52,8 @@ def main():
             print("Received nothing! Listening again...")
         else:
             led_neo[0] = (0, 0, 255)
-            print()
             # raw packet
+            print()
             print("Received (raw bytes): {0}".format(packet))
 
             # processed packet
@@ -73,20 +74,23 @@ def main():
             
                 print(weather_data)
                 send_data = bytes(weather_data, "\r\n","utf-8")
-                rfm69(send_data)
+                rfm69.send(send_data)
                 print("Sent weather data")
                 led_neo[0] = (0, 255, 0)
-                print()
+                print("Sent weather data")
+                led_neo[0] = (0, 255, 0)
 
 
 try:  # sometimes the radios get fucky wucky
     print("Running main()")
+    print("RSSI: " + str(rfm69.rssi))
+    print("Power: " + str(rfm69.tx_power))
     main()
 except UnicodeError:    # maybe change to general traceback
     print("Unicode error")
     led_neo[0] = (255, 0, 0)
     #send a message to the server that the request failed has failed
-    main()
+    #main()
 
 
 

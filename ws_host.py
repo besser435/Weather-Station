@@ -100,8 +100,9 @@ with open(file_location + FILE_NAME, "a") as f:
 
 
 while True:
+    #time.sleep(0.5)
     get_update = bytes("request_weather\r\n", "utf-8")
-
+    
     weekday = str(datetime.datetime.today().weekday())
     current_time = str(datetime.datetime.now().strftime("%I:%M %p"))
 
@@ -109,14 +110,15 @@ while True:
     display.text(weekday, 0, 0, 1)
     display.text(current_time, 0, 25, 1)
     display.show()
-    time.sleep(2)
+    
     
     # log the data every 20 minutes (Only does it once per hour rn)
     # fetch an update from every 20 minutes
 
     # if its time to get an update, fetch it
-    #if datetime.datetime.now().minute == 3:
+    #if datetime.datetime.now().minute == 2:
     if True:
+        #print(datetime.datetime.now().minute)
         display.fill(0)
         rfm69.send(get_update)
         display.text("Requested update", 0, 0, 1)
@@ -134,32 +136,25 @@ while True:
         print("Requested update manually")
 
 
-
+    # the code below should be in a function that the two conditions above call
     # fetch the data from the returned packet
     packet = None
-    packet = rfm69.receive()
+    packet = rfm69.receive(keep_listening=True, timeout=1.0)
     if packet is None:
         print("Received nothing! Listening again...")
         display.fill(0)
         display.text("Received nothing", 0, 0, 1)
         display.show()
     else:
+        prev_packet = packet
         packet_text = str(packet, "ascii")
-        print("Received (ASCII): {0}".format(packet_text))
+        print("Received (raw bytes): " + str(packet))
+        print("Received (formatted): " + packet_text)
 
-
-        #display.fill(0)
-        """ prev_packet = packet
-        packet_text = str(prev_packet, "utf-8")"""
-
-        #display.text("RX: ", 0, 0, 1)
-        #display.text(packet_text, 0, 0, 1)
-        
         display.fill(0)
         display.text("Got data", 0, 0, 1)
         display.show()
         
-
         # returned data
         temp = packet_text.split(",")[0]
         pressure = packet_text.split(",")[1]
@@ -172,7 +167,7 @@ while True:
         print("Humidity: " + humidity)
         print("Time: " + str(time_date))
         print()
-        time.sleep(3)
+        #time.sleep(1)
 
        
 
@@ -192,5 +187,5 @@ while True:
         time.sleep(0.05)
     """
     display.show()
-    time.sleep(0.1)
+    #time.sleep(0.1)
 
