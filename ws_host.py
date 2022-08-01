@@ -16,17 +16,18 @@ button to refresh (not log) new data
 """
 
 
-version = "Weather Station v0.1"
+version = "Weather Station v0.1 (Server)"
 print(version)
 
 
 import time
 import datetime
+
+from requests import request
 import busio
 from digitalio import DigitalInOut, Direction, Pull
 import board
-
-
+import threading
 import displayio
 #import adafruit_displayio_ssd1306 # NEW LIBRARY
 import adafruit_ssd1306 # OLED display, this libary is deprecated. update to displayio
@@ -98,94 +99,98 @@ last_update = None
 with open(file_location + FILE_NAME, "a") as f: 
     f.write("temp,pressure,humidity,time_date\n") # ADD: api_temp, api_pressure, api_humidity, api_conditions, api_time
 
-
-while True:
-    #time.sleep(0.5)
-    get_update = bytes("request_weather\r\n", "utf-8")
-    
-    weekday = str(datetime.datetime.today().weekday())
-    current_time = str(datetime.datetime.now().strftime("%I:%M %p"))
-
-    display.fill(0)
-    display.text(weekday, 0, 0, 1)
-    display.text(current_time, 0, 25, 1)
-    display.show()
-    
-    
-    # log the data every 20 minutes (Only does it once per hour rn)
-    # fetch an update from every 20 minutes
-
-    # if its time to get an update, fetch it
-    #if datetime.datetime.now().minute == 2:
-    if True:
-        #print(datetime.datetime.now().minute)
-        display.fill(0)
-        rfm69.send(get_update)
-        display.text("Requested update", 0, 0, 1)
-        display.show()    
-        print("Requested update")
-        #time.sleep(0.05) #needed? longer? shorter?
- 
-
-    # manually fetch an update
-    if not btnA.value:
-        display.fill(0)
-        rfm69.send(get_update)
-        display.text("Requested update manually", 0, 25, 1)
-        display.show()
-        print("Requested update manually")
-
-
-    # the code below should be in a function that the two conditions above call
-    # fetch the data from the returned packet
-    packet = None
-    packet = rfm69.receive(keep_listening=True, timeout=1.0)
-    if packet is None:
-        print("Received nothing! Listening again...")
-        display.fill(0)
-        display.text("Received nothing", 0, 0, 1)
-        display.show()
-    else:
-        prev_packet = packet
-        packet_text = str(packet, "ascii")
-        print("Received (raw bytes): " + str(packet))
-        print("Received (formatted): " + packet_text)
+try:
+    while True:
+        #time.sleep(0.5)
+        get_update = bytes("request_weather\r\n", "utf-8")
+        
+        weekday = str(datetime.datetime.today().weekday())
+        current_time = str(datetime.datetime.now().strftime("%I:%M %p"))
 
         display.fill(0)
-        display.text("Got data", 0, 0, 1)
+        display.text(weekday, 0, 0, 1)
+        display.text(current_time, 0, 25, 1)
         display.show()
         
-        # returned data
-        temp = packet_text.split(",")[0]
-        pressure = packet_text.split(",")[1]
-        humidity = packet_text.split(",")[2]
-        time_date = datetime.datetime.now() # the station has no time, so I have to rely on the Pi's time
-        last_update = time_date
-
-        print("Temp: " + temp)
-        print("Pressure: " + pressure)
-        print("Humidity: " + humidity)
-        print("Time: " + str(time_date))
-        print()
-        #time.sleep(1)
-
-       
+        
+        # log the data every 20 minutes (Only does it once per hour rn)
+        # fetch an update from every 20 minutes
 
 
-        # log the data to the file
-        with open(file_location + FILE_NAME, "a") as f: 
-            f.write(str(temp) + "," + str(pressure) + "," + str(humidity) + "," + str(time_date) + "\n")
+        #if datetime.datetime.now().minute == 14: # test for exact minute
+        #if datetime.datetime.now().minute % 2 == 0:
+        if True: # for testing
+            display.fill(0)
+            rfm69.send(get_update)
+            display.text("Requested update", 0, 0, 1)
+            display.show()    
+            print("Requested update")
+            #time.sleep(0.05) #needed? longer? shorter?
+
+        # manually fetch an update
+        elif not btnA.value:
+            display.fill(0)
+            rfm69.send(get_update)
+            display.text("Requested update manually", 0, 25, 1)
+            display.show()
+            print("Requested update manually")
 
 
-    # error checking
-    """if time_date - last_update > datetime.timedelta(hours=1):
-        display.text("Error: No data in last hour", 25, 15, 1)
-        with open(file_location + FILE_NAME, "a") as f: 
-            f.write("Stale data. last update: " + str(last_update) + "current time: " + time_date + "\n")
+        # the code below should be in a function that the two conditions above call
+        # fetch the data from the returned packet
+        packet = None
+        packet = rfm69.receive(keep_listening=True, timeout=1.0)
+        if packet is None:
+            print("Received nothing! Listening again...")
+            display.fill(0)
+            display.text("Received nothing", 0, 0, 1)
+            display.show()
+        else:
+            prev_packet = packet
+            packet_text = str(packet, "ascii")
+            print("Received (raw bytes): " + str(packet))
+            print("Received (formatted): " + packet_text)
 
-        print("Error: No data in last hour")
-        time.sleep(0.05)
-    """
-    display.show()
-    #time.sleep(0.1)
+            display.fill(0)
+            display.text("Got data", 0, 0, 1)
+            display.show()
+            
+            # returned data
+            temp = packet_text.split(",")[0]
+            pressure = packet_text.split(",")[1]
+            humidity = packet_text.split(",")[2]
+            time_date = datetime.datetime.now() # the station has no time, so I have to rely on the Pi's time
+            last_update = time_date
 
+            print("Temp: " + temp)
+            print("Pressure: " + pressure)
+            print("Humidity: " + humidity)
+            print("Time: " + str(time_date))
+            print()
+            #time.sleep(1)
+
+        
+
+
+            # log the data to the file
+            with open(file_location + FILE_NAME, "a") as f: 
+                f.write(str(temp) + "," + str(pressure) + "," + str(humidity) + "," + str(time_date) + "\n")
+
+
+        # error checking
+        """if time_date - last_update > datetime.timedelta(hours=1):
+            display.text("Error: No data in last hour", 25, 15, 1)
+            with open(file_location + FILE_NAME, "a") as f: 
+                f.write("Stale data. last update: " + str(last_update) + "current time: " + time_date + "\n")
+
+            print("Error: No data in last hour")
+            time.sleep(0.05)
+        """
+        display.show()
+        #time.sleep(0.1)
+except IndexError:
+    # sometimes the radio receives its own request for some reason
+    print("F-fucky wucky detected! IndexError bwyte awway out of wange!") # war crime soup
+
+
+ 

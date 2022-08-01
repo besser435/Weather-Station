@@ -8,6 +8,9 @@ import adafruit_rfm69
 from adafruit_ms8607 import MS8607
 import traceback
 
+version = "Weather Station v0.1 (Station)"
+print(version)
+
 # I2C
 i2c = busio.I2C(board.SCL, board.SDA)
 
@@ -23,9 +26,6 @@ spi = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
 cs = digitalio.DigitalInOut(board.D5)
 reset = digitalio.DigitalInOut(board.D6)
 rfm69 = adafruit_rfm69.RFM69(spi, cs, reset, 915.0, high_power=True, )
-
-
-
 prev_packet = None
 # Optionally set an encryption key (16 byte AES key). MUST match both
 # on the transmitter and receiver (or be set to None to disable/the default).
@@ -39,10 +39,26 @@ prev_packet = None
 # https://learn.adafruit.com/adafruit-rfm69hcw-and-rfm96-rfm95-rfm98-lora-packet-padio-breakouts/advanced-circuitpython-rfm69-library-usage
 
 
-debug_mode = 1
 led_neo[0] = (0, 255, 0)
-
 def main():
+    while True:
+        led_neo[0] = (0, 0, 255)
+
+        weather_data= ( 
+        str(weath_sens.temperature) + "," + 
+        str(weath_sens.pressure) + "," + 
+        str(weath_sens.relative_humidity)
+        )
+
+        send_data = bytes(weather_data, "\r\n","utf-8")
+        rfm69.send(send_data)
+        print(weather_data)
+        print("Sent weather data")
+        led_neo[0] = (0, 0, 0)
+        time.sleep(1)
+        
+
+"""def main():
     while True:
         packet = None
         packet = rfm69.receive()
@@ -77,8 +93,8 @@ def main():
                 rfm69.send(send_data)
                 print("Sent weather data")
                 led_neo[0] = (0, 255, 0)
-                print("Sent weather data")
-                led_neo[0] = (0, 255, 0)
+
+"""
 
 
 try:  # sometimes the radios get fucky wucky
@@ -90,11 +106,11 @@ except UnicodeError:    # maybe change to general traceback
     print("Unicode error")
     led_neo[0] = (255, 0, 0)
     #send a message to the server that the request failed has failed
-    #main()
+    main()
 
 
 
-
+"""
 
 # SPDX-FileCopyrightText: 2018 Tony DiCola for Adafruit Industries
 # SPDX-License-Identifier: MIT
@@ -162,3 +178,4 @@ while True:
     print(yes)
 
    
+"""
